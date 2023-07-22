@@ -98,8 +98,10 @@ def run(
     model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
     # strides：推理时所用到的步长，默认为32，大步长适合于大目标，
     # names: 保存推理结果名的列表
-    
+    # pt: 是否为pytorch模型
     stride, names, pt = model.stride, model.names, model.pt
+    #------------------------------------------------
+    # 将图片大小调整为步长的整数倍
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
     # Dataloader
@@ -115,7 +117,12 @@ def run(
     vid_path, vid_writer = [None] * bs, [None] * bs
 
     # Run inference
+    #---------------------------------------------------------
+    # warmup:预热，使用空白图像进行推理，以便后续推理速度更快
+    #---------------------------------------------------------
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup
+    #---------------------------------------------------------
+    
     seen, windows, dt = 0, [], (Profile(), Profile(), Profile())
     for path, im, im0s, vid_cap, s in dataset:
         with dt[0]:
@@ -129,6 +136,7 @@ def run(
         with dt[1]:
             visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
             pred = model(im, augment=augment, visualize=visualize)
+            # pred是推理结果，保存所有的bound_box信息
 
         # NMS
         with dt[2]:
@@ -237,7 +245,7 @@ def parse_opt():
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
-    parser.add_argument('--visualize', default=True,action='store_true', help='visualize features')
+    parser.add_argument('--visualize', default=False,action='store_true', help='visualize features')
     parser.add_argument('--update', action='store_true', help='update all models')
     parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')

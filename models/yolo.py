@@ -119,6 +119,7 @@ class BaseModel(nn.Module):
 
     def _forward_once(self, x, profile=False, visualize=False):
         y, dt = [], []  # outputs
+        # num=0
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
@@ -128,6 +129,9 @@ class BaseModel(nn.Module):
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
+            # num+=1
+            # if num==23:
+            #     print(num)
         return x
 
     def _profile_one_layer(self, m, x, dt):
@@ -181,14 +185,19 @@ class DetectionModel(BaseModel):
                 self.yaml = yaml.safe_load(f)  # model dict
 
         # Define model
-        ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
+        ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels 输入通道数
         if nc and nc != self.yaml['nc']:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
         if anchors:
             LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
+            
+        #-----------------------------
+        # parse_model()函数解析yaml文件，返回model和savelist
+        #----------------------------- 
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
+        
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names
         self.inplace = self.yaml.get('inplace', True)
 
@@ -311,7 +320,16 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         LOGGER.info(f"{colorstr('activation:')} {act}")  # print
     na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
     no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
-
+    #---------------------------------------------------------------------------------
+    # na: anchors的数量
+    # anchors[0] 长度为6，表示3个w-h对，即3个anchor，因此na=3
+    # no：每个anchor的输出数据数量，为anchors * (classes + 5)，其中classes为类别数量，5为x,y,w,h,conf。
+    #---------------------------------------------------------------------------------
+    
+    #---------------------------------------------------------------------------------------------
+    # layers:所有的网络层
+    # save:标记该层网络的特征图是否需要保存
+    # c2:该层网络的输出通道数
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
         m = eval(m) if isinstance(m, str) else m  # eval strings
