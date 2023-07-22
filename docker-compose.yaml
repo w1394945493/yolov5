@@ -1,0 +1,28 @@
+version: '3.9'
+
+services:
+  demo_yolov5_copy_A:
+    image: lux.x-contion.top:500/dev/motr:wys_0708
+    entrypoint: "/usr/sbin/sshd -D"
+    privileged: true
+    container_name: yolov5_A 
+    environment:
+      - DEBUG=1
+      - SHOW='true'
+      - DOCKER_BUILDKIT=1
+      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility,graphics
+    volumes:
+      - ./:/workspace
+      - /data/Datasets:/data/Datasets
+      - /data/Weights:/data/Weights
+    deploy:
+      mode: replicated
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: all
+          memory: 16G
+    shm_size: 16G
+
